@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { suppliers, medicines } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PurchaseItem {
   medicineId: string;
@@ -11,11 +13,22 @@ interface PurchaseItem {
 }
 
 const Purchases = () => {
+  const { userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
+  const [searchParams] = useSearchParams();
   const [supplierId, setSupplierId] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('2026-02-10');
   const [items, setItems] = useState<PurchaseItem[]>([
     { medicineId: '', batchNumber: '', expiryDate: '', quantity: 0, costPrice: 0 },
   ]);
+
+  // Pre-fill from restock flow
+  useEffect(() => {
+    const prefill = searchParams.get('prefill');
+    if (prefill) {
+      setItems([{ medicineId: prefill, batchNumber: '', expiryDate: '', quantity: 0, costPrice: 0 }]);
+    }
+  }, [searchParams]);
 
   const addRow = () => {
     setItems([...items, { medicineId: '', batchNumber: '', expiryDate: '', quantity: 0, costPrice: 0 }]);
@@ -126,7 +139,11 @@ const Purchases = () => {
                 </td>
                 <td className="text-right font-medium">₹{(item.quantity * item.costPrice).toFixed(2)}</td>
                 <td>
-                  <button onClick={() => removeRow(i)} className="text-muted-foreground hover:text-destructive">
+                  <button
+                    onClick={() => removeRow(i)}
+                    disabled={items.length <= 1}
+                    className="text-muted-foreground hover:text-destructive disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </td>

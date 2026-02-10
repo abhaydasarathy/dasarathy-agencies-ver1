@@ -11,6 +11,7 @@ interface SaleItem {
   price: number;
   maxQty: number;
   warning?: string;
+  availableBatches: { id: string; batchNumber: string; expiryDate: string; quantity: number; costPrice: number; status: string }[];
 }
 
 const Sales = () => {
@@ -28,7 +29,6 @@ const Sales = () => {
     const med = medicines.find(m => m.id === medicineId);
     if (!med) return;
 
-    // FIFO: pick earliest expiry batch that isn't expired
     const availableBatches = batches
       .filter(b => b.medicineId === medicineId && b.quantity > 0 && b.status !== 'expired')
       .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
@@ -36,7 +36,7 @@ const Sales = () => {
     if (availableBatches.length === 0) return;
 
     const batch = availableBatches[0];
-    const warning = batch.status === 'near-expiry' ? 'Near expiry batch selected' : undefined;
+    const warning = batch.status === 'near-expiry' ? 'Near expiry batch selected (FIFO)' : undefined;
 
     setItems([...items, {
       medicineId,
@@ -44,16 +44,44 @@ const Sales = () => {
       batchId: batch.id,
       batchNumber: batch.batchNumber,
       quantity: 1,
-      price: batch.costPrice * 1.2, // 20% markup
+      price: batch.costPrice * 1.2,
       maxQty: batch.quantity,
       warning,
+      availableBatches,
     }]);
     setSearch('');
   };
 
+  const changeBatch = (index: number, batchId: string) => {
+    const updated = [...items];
+    const item = updated[index];
+    const newBatch = item.availableBatches.find(b => b.id === batchId);
+    if (!newBatch) return;
+
+    const fifoBatch = item.availableBatches[0];
+    const isFifo = newBatch.id === fifoBatch.id;
+    const warning = !isFifo
+      ? `⚠ Non-FIFO batch selected (FIFO: ${fifoBatch.batchNumber}, exp: ${fifoBatch.expiryDate})`
+      : newBatch.status === 'near-expiry'
+        ? 'Near expiry batch selected (FIFO)'
+        : undefined;
+
+    updated[index] = {
+      ...item,
+      batchId: newBatch.id,
+      batchNumber: newBatch.batchNumber,
+      price: newBatch.costPrice * 1.2,
+      maxQty: newBatch.quantity,
+      quantity: Math.min(item.quantity, newBatch.quantity),
+      warning,
+    };
+    setItems(updated);
+  };
+
   const updateQuantity = (index: number, qty: number) => {
     const updated = [...items];
-    updated[index].quantity = Math.min(qty, updated[index].maxQty);
+    const clamped = Math.max(1, Math.min(qty, updated[index].maxQty));
+    updated[index].quantity = clamped;
     setItems(updated);
   };
 
@@ -68,7 +96,6 @@ const Sales = () => {
       <h2 className="text-lg font-bold text-foreground mb-4">Sales / Billing</h2>
 
       <div className="grid grid-cols-3 gap-4">
-        {/* Left: Search + Add */}
         <div className="col-span-2">
           <div className="bg-card border border-border rounded-sm p-4 mb-4">
             <div className="grid grid-cols-2 gap-4 mb-3">
@@ -91,7 +118,7 @@ const Sales = () => {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-full pl-8 pr-3 py-2 text-sm border border-input bg-background rounded-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                    placeholder="Type medicine name..."
+                    placeholder="Type medicine name to add..."
                   />
                 </div>
                 {searchResults.length > 0 && (
@@ -114,7 +141,6 @@ const Sales = () => {
               </div>
             </div>
 
-            {/* Items Table */}
             <table className="erp-table">
               <thead>
                 <tr>
@@ -144,7 +170,19 @@ const Sales = () => {
                           </div>
                         )}
                       </td>
-                      <td className="text-xs">{item.batchNumber}</td>
+                      <td>
+                        <select
+                          value={item.batchId}
+                          onChange={(e) => changeBatch(i, e.target.value)}
+                          className="w-full px-1 py-1 text-xs border border-input bg-background rounded-sm"
+                        >
+                          {item.availableBatches.map(b => (
+                            <option key={b.id} value={b.id}>
+                              {b.batchNumber} (exp: {b.expiryDate}, qty: {b.quantity})
+                            </option>
+                          ))}
+                        </select>
+                      </td>
                       <td>₹{item.price.toFixed(2)}</td>
                       <td>
                         <input
@@ -153,7 +191,7 @@ const Sales = () => {
                           max={item.maxQty}
                           value={item.quantity}
                           onChange={(e) => updateQuantity(i, Number(e.target.value))}
-                          className="w-16 px-2 py-1 text-sm border border-input bg-background rounded-sm text-right"
+                          className="w-20 px-2 py-1 text-sm border border-input bg-background rounded-sm text-right"
                         />
                       </td>
                       <td className="text-right font-medium">₹{(item.quantity * item.price).toFixed(2)}</td>
@@ -168,7 +206,6 @@ const Sales = () => {
           </div>
         </div>
 
-        {/* Right: Total */}
         <div>
           <div className="bg-card border border-border rounded-sm p-4 sticky top-5">
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide mb-4">Invoice Summary</h3>

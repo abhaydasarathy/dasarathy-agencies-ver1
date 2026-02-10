@@ -1,7 +1,9 @@
+import { useNavigate } from 'react-router-dom';
 import KPICard from '@/components/KPICard';
 import { recentSales, recentPurchases, batches } from '@/data/mockData';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const nearExpiryCount = batches.filter(b => b.status === 'near-expiry').length;
   const expiredCount = batches.filter(b => b.status === 'expired').length;
   const lowStockCount = batches.filter(b => b.status === 'low').length;
@@ -11,18 +13,26 @@ const Dashboard = () => {
     <div>
       <h2 className="text-lg font-bold text-foreground mb-4">Dashboard</h2>
 
-      {/* KPIs */}
       <div className="grid grid-cols-5 gap-3 mb-6">
-        <KPICard title="Total Stock Value" value="₹4,85,200" subtitle="Across 15 medicines" />
-        <KPICard title="Near Expiry" value={nearExpiryCount} subtitle="Within 90 days" variant="warning" />
-        <KPICard title="Expired Batches" value={expiredCount} subtitle="Requires action" variant="critical" />
-        <KPICard title="Low Stock Items" value={lowStockCount} subtitle="Below threshold" variant="warning" />
-        <KPICard title="Today's Sales" value={`₹${todaySales.toLocaleString()}`} subtitle="2 invoices" variant="healthy" />
+        <div className="cursor-pointer" onClick={() => navigate('/stock')}>
+          <KPICard title="Total Stock Value" value="₹4,85,200" subtitle="Across 15 medicines" />
+        </div>
+        <div className="cursor-pointer" onClick={() => navigate('/alerts?tab=near-expiry')}>
+          <KPICard title="Near Expiry" value={nearExpiryCount} subtitle="Within 90 days" variant="warning" />
+        </div>
+        <div className="cursor-pointer" onClick={() => navigate('/alerts?tab=expired')}>
+          <KPICard title="Expired Batches" value={expiredCount} subtitle="Requires action" variant="critical" />
+        </div>
+        <div className="cursor-pointer" onClick={() => navigate('/alerts?tab=low-stock')}>
+          <KPICard title="Low Stock Items" value={lowStockCount} subtitle="Below threshold" variant="warning" />
+        </div>
+        <div className="cursor-pointer" onClick={() => navigate('/reports')}>
+          <KPICard title="Today's Sales" value={`₹${todaySales.toLocaleString()}`} subtitle="2 invoices" variant="healthy" />
+        </div>
       </div>
 
       {/* Tables */}
       <div className="grid grid-cols-2 gap-4">
-        {/* Recent Purchases */}
         <div className="bg-card border border-border rounded-sm">
           <div className="px-3 py-2 border-b border-border">
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Recent Purchases</h3>
@@ -49,7 +59,6 @@ const Dashboard = () => {
           </table>
         </div>
 
-        {/* Recent Sales */}
         <div className="bg-card border border-border rounded-sm">
           <div className="px-3 py-2 border-b border-border">
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Recent Sales</h3>
@@ -77,7 +86,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Expiry Risk */}
       <div className="mt-4 bg-card border border-border rounded-sm">
         <div className="px-3 py-2 border-b border-border">
           <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Expiry Risk Summary</h3>
