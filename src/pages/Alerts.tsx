@@ -1,13 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { batches, medicines } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 
 type AlertTab = 'low-stock' | 'near-expiry' | 'expired';
 
 const Alerts = () => {
-  const [tab, setTab] = useState<AlertTab>('expired');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { userRole } = useAuth();
+  const initialTab = (searchParams.get('tab') as AlertTab) || 'expired';
+  const [tab, setTab] = useState<AlertTab>(initialTab);
+  const [disposedIds, setDisposedIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const expiredBatches = batches.filter(b => b.status === 'expired');
-  const nearExpiryBatches = batches.filter(b => b.status === 'near-expiry');
+  useEffect(() => {
+    const t = searchParams.get('tab') as AlertTab;
+    if (t && ['low-stock', 'near-expiry', 'expired'].includes(t)) setTab(t);
+  }, [searchParams]);
+
+  const expiredBatches = batches.filter(b => b.status === 'expired' && !disposedIds.has(b.id));
+  const nearExpiryBatches = batches.filter(b => b.status === 'near-expiry' && !disposedIds.has(b.id));
   const lowStockMeds = medicines.filter(m => m.status === 'low' || m.status === 'out');
 
   const tabs: { key: AlertTab; label: string; count: number }[] = [
@@ -16,11 +29,23 @@ const Alerts = () => {
     { key: 'low-stock', label: 'Low Stock', count: lowStockMeds.length },
   ];
 
+  const handleDispose = (id: string) => {
+    if (confirmDeleteId === id) {
+      setDisposedIds(prev => new Set(prev).add(id));
+      setConfirmDeleteId(null);
+    } else {
+      setConfirmDeleteId(id);
+    }
+  };
+
+  const handleRestock = (medicineId: string) => {
+    navigate(`/purchases?prefill=${medicineId}`);
+  };
+
   return (
     <div>
       <h2 className="text-lg font-bold text-foreground mb-4">Alerts</h2>
 
-      {/* Tabs */}
       <div className="flex gap-0 border-b border-border mb-4">
         {tabs.map(t => (
           <button
@@ -34,8 +59,7 @@ const Alerts = () => {
           >
             {t.label}
             <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-sm font-semibold ${
-              t.key === 'expired' ? 'status-critical' :
-              t.key === 'near-expiry' ? 'status-warning' : 'status-warning'
+              t.key === 'expired' ? 'status-critical' : 'status-warning'
             }`}>
               {t.count}
             </span>
@@ -56,14 +80,23 @@ const Alerts = () => {
               </tr>
             </thead>
             <tbody>
-              {expiredBatches.map(b => (
+              {expiredBatches.length === 0 ? (
+                <tr><td colSpan={5} className="text-center text-muted-foreground py-6">No expired alerts</td></tr>
+              ) : expiredBatches.map(b => (
                 <tr key={b.id} className="bg-status-critical/5">
                   <td className="font-medium">{b.medicineName}</td>
                   <td>{b.batchNumber}</td>
                   <td>{b.expiryDate}</td>
                   <td className="text-right">{b.quantity}</td>
                   <td>
-                    <button className="text-xs text-destructive font-medium hover:underline">Mark for Disposal</button>
+                    {confirmDeleteId === b.id ? (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleDispose(b.id)} className="text-xs text-destructive font-bold hover:underline">Confirm Delete</button>
+                        <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-muted-foreground hover:underline">Cancel</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => handleDispose(b.id)} className="text-xs text-destructive font-medium hover:underline">Mark for Disposal</button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -80,6 +113,7 @@ const Alerts = () => {
                 <th>Expiry Date</th>
                 <th className="text-right">Quantity</th>
                 <th>Days Left</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -95,6 +129,16 @@ const Alerts = () => {
                       <span className="status-warning px-2 py-0.5 rounded-sm text-xs font-semibold">
                         {daysLeft} days
                       </span>
+                    </td>
+                    <td>
+                      {confirmDeleteId === b.id ? (
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleDispose(b.id)} className="text-xs text-destructive font-bold hover:underline">Confirm</button>
+                          <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-muted-foreground hover:underline">Cancel</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => handleDispose(b.id)} className="text-xs text-destructive font-medium hover:underline">Dispose</button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -112,6 +156,7 @@ const Alerts = () => {
                 <th>Manufacturer</th>
                 <th className="text-right">Current Stock</th>
                 <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -127,6 +172,14 @@ const Alerts = () => {
                     }`}>
                       {m.status === 'out' ? 'OUT OF STOCK' : 'LOW'}
                     </span>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => handleRestock(m.id)}
+                      className="text-xs text-primary font-medium hover:underline"
+                    >
+                      Restock →
+                    </button>
                   </td>
                 </tr>
               ))}

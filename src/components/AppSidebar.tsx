@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Pill, Package, ShoppingCart, Receipt,
   Users, BarChart3, AlertTriangle, ChevronLeft, ChevronRight, LogOut
@@ -23,6 +23,7 @@ const navItems = [
 
 const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <aside
@@ -30,8 +31,11 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
         collapsed ? 'w-14' : 'w-52'
       }`}
     >
-      {/* Header */}
-      <div className="px-3 py-4 border-b border-sidebar-border">
+      {/* Header - clickable logo */}
+      <div
+        className="px-3 py-4 border-b border-sidebar-border cursor-pointer hover:bg-sidebar-accent/50 transition-colors"
+        onClick={() => navigate('/dashboard')}
+      >
         {!collapsed && (
           <div>
             <div className="text-sm font-bold text-sidebar-primary-foreground tracking-wide">DASARATHY</div>
@@ -41,7 +45,6 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
         {collapsed && <div className="text-sm font-bold text-sidebar-primary-foreground text-center">DA</div>}
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 py-2 overflow-y-auto">
         {navItems.map((item) => (
           <NavLink
@@ -61,7 +64,6 @@ const AppSidebar = ({ collapsed, onToggle }: AppSidebarProps) => {
         ))}
       </nav>
 
-      {/* Footer */}
       <div className="border-t border-sidebar-border">
         <button
           onClick={logout}
